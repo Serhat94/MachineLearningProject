@@ -1,0 +1,164 @@
+#Gerekli Kütüphaneler
+import pandas as pd
+import numpy as np
+import requests
+from bs4 import BeautifulSoup
+
+#Gerekli listeler
+url_list = [] 
+prices_list = []
+propTitles = []  
+propValues = []  
+#Özelliklerin Çekilmesi
+for i in range(1,32): #32 burada sayfa sayısı
+    url = "https://www.trendyol.com/laptop?pi=" + str(i) #Urlin for döngüsü ile güncellenmesi
+    r = requests.get(url) #Hazırlanan url'e istek yapılması
+    source = BeautifulSoup(r.content,"lxml") #istek yapılan sayfanın içeriğinin-çekilmesi
+    
+    urls = source.find_all("div", attrs={"class":"p-card-chldrn-cntnr"})#Tüm verilerin bulunması
+    for url in urls:
+        url_laptop = "https://www.trendyol.com/"+url.a.get("href") #Verilerin linklerinin bulunması
+        url_list.append(url_laptop) #linklerin kaydedilmesi
+        print(url_laptop)
+        
+        r_laptop = requests.get(url_laptop) #Bulunan linke tekrar istek atılması
+        source_laptop = BeautifulSoup(r_laptop.content,"lxml") #veri içeriğinin çekilmesi
+        
+        properties = source_laptop.find_all("div",attrs ={"class":"prop-item"}) #Bütün özelliklerin bulunması
+        for prop in properties:
+            prop_title = prop.find("div",attrs = {"class":"item-key"}).text
+            prop_value = prop.find("div",attrs = {"class":"item-value"}).text
+            propTitles.append(prop_title)
+            propValues.append(prop_value)
+                                            
+    prices = source.find_all("div",attrs = {"class":"prc-box-sllng"}) #Bütün fiyat özelliklerinin bulunması
+    for price in prices:
+        prices_list.append(price.text) #Bulunan özellikler arasında gezinme ve listeye yazma
+        print(price.text)
+            
+print(str(len(url_list))+" Adet link bulundu.")
+print(str(len(prices_list))+" Adet fiyat bulundu.")
+print(str(len(propTitles))+" Adet özellik başlığı bulundu.")
+print(str(len(propValues))+" Adet özellik verisi bulundu.")
+
+
+#Url ve fiyatları bir data frame yazma
+df_urls = pd.DataFrame()
+df_urls["urls"] = url_list
+df_urls["prices"] = prices_list
+
+#Urls ve prices kaydetme
+df_urls.head()
+
+#Bulunan veri sayısı
+laptop = len(url_list)
+
+
+#Bulunan özellik başlıklarının benzersizlerini bulma
+columns = np.array(propTitles)
+columns = np.unique(columns)
+
+#Başlıkları kullanarak url ve fiyat ile birlikte yeni bir dataframe oluşturma
+df = pd.DataFrame(columns = columns)
+df["url"] = url_list
+df["price"] = prices_list
+
+#Oluşturulan data frame gösterme
+df.head()
+
+#Data frame'i kullanarak bütün verileri çekme ve sütünlara yazdırma 
+for i in range(0,laptop):
+    url = df['url'].loc[i]
+    r = requests.get(url)
+    source = BeautifulSoup(r.content,"lxml")
+    
+    properties = source.find_all("div",attrs ={"class":"prop-item"}) #Bütün özelliklerin bulunması
+    for prop in properties:
+        prop_title = prop.find("div",attrs = {"class":"item-key"}).text
+        prop_value = prop.find("div",attrs = {"class":"item-value"}).text
+        print(prop_title + prop_value)
+        df[prop_title].loc[i] = prop_value
+
+#Oluşturulan data frame gösterme
+df.head()
+
+#Data frame'i csv formatına çevirip kaydetme
+df.to_csv("./data/laptop_data.csv" , index = False)
+
+#VERİ ÖN İŞLEME KODLARI #
+
+#Gerekli Kütüphaneler
+import pandas as pd
+import numpy as np
+import requests
+from bs4 import BeautifulSoup
+import openpyxl
+
+
+# Importing the dataset
+dataset = pd.read_excel('laptop-veri çekme.xlsx')
+X = dataset.iloc[:, :-1].values #X:Bağımsız Değişken
+y = dataset.iloc[:, -1].values  #y:Bağımlı Değişken
+print(X)
+print(y)
+
+# Taking care of missing data SimpleImputer:Boş olan verileri değer girilmesini sağlıyor
+from sklearn.impute import SimpleImputer
+imputer = SimpleImputer(missing_values=np.nan, strategy='most_frequent')
+imputer.fit(X[:, 4:8]) #imputer nesnesini fit:uygula 
+X[:, 4:8] = imputer.transform(X[:, 4:8]) #transform fit de uyguladığımız kısımları burada ata
+print(X)
+
+# Encoding categorical data
+# Encoding the Independent Variable
+# OneHotEncoder kullanmamızın sebebi:binary şeklinde sayısal veriye çevir 
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+ct = ColumnTransformer(transformers=[('encoder', OneHotEncoder(), [0])], remainder='passthrough')
+X = np.array(ct.fit_transform(X))
+print(X)
+
+# Encoding categorical data
+# Encoding the Independent Variable
+# OneHotEncoder kullanmamızın sebebi:binary şeklinde sayısal veriye çevir 
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+ct = ColumnTransformer(transformers=[('encoder', OneHotEncoder(), [1])], remainder='passthrough')
+X = np.array(ct.fit_transform(X))
+print(X)
+
+# Encoding categorical data
+# Encoding the Independent Variable
+# OneHotEncoder kullanmamızın sebebi:binary şeklinde sayısal veriye çevir 
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+ct = ColumnTransformer(transformers=[('encoder', OneHotEncoder(), [2])], remainder='passthrough')
+X = np.array(ct.fit_transform(X))
+print(X)
+
+# Encoding the Dependent Variable
+# Label Encoding : Sayısal veriye çeviriyor
+from sklearn.preprocessing import LabelEncoder
+le = LabelEncoder()
+y = le.fit_transform(y)
+print(y)
+
+
+# Splitting the dataset into the Training set and Test set
+# Veri setini test ve train olarak ayırmış olduk
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 1)
+print(X_train)
+print(X_test)
+print(y_train)
+print(y_test)
+
+
+# Feature Scaling 
+# Veri Ölçeklemeye yarar yani veriler arasındaki değer aralıklarını belli bir aralığa sıkıştırıyor
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler() 
+X_train[:, 8:] = sc.fit_transform(X_train[:, 8:])
+X_test[:, 8:] = sc.transform(X_test[:, 8:])
+print(X_train)
+print(X_test)
